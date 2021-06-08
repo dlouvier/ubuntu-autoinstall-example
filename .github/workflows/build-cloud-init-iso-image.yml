@@ -1,0 +1,70 @@
+name: Build Cloud-init ISO image
+on:
+  workflow_dispatch:
+    inputs:
+      hostname:
+        description: 'Hostname'
+        required: true
+        default: 'prodapp1'
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'production'
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+          ref: ${{ github.ref }}
+
+      - name: Check configuration file exists
+        run: ls -l configs/environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.hostname }}.yml
+
+        # Using the yq action is pretty unreliable, let's use just the binary.
+      - name: Install yq binary
+        run: |
+          sudo wget -O /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.9.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Merge the yamls configuration files
+        run: |
+          yq eval-all 'select(fi == 0) * select(fi == 1) |
+          (.ethernets as $ethernets) | (.hostname as $hostname) |
+          .autoinstall.network.ethernets = $ethernets |
+          .autoinstall.identity.hostname = $hostname |
+          del(.ethernets) | del(.hostname)' \
+          configs/environments/${{ github.event.inputs.environment }}/${{ github.event.inputs.hostname }}.yml \
+          configs/root_config.yml | tee user-data-nosecrets.yml
+
+      - name: Prepare nocloud directory
+        run: |
+          mkdir nocloud
+          touch nocloud/meta-data
+
+      - name: Replace secrets
+        shell: bash
+        env:
+          DEFAULT_USER_PASSWORD: ${{ secrets.DEFAULT_USER_PASSWORD }}
+          DEFAULT_USER_SSH_KEY: ${{ secrets.DEFAULT_USER_SSH_KEY }}
+        run: |
+          envsubst < "user-data-nosecrets.yml" > "nocloud/user-data"
+
+      - name: Install ISO creator software
+        run: |
+          sudo apt install genisoimage
+
+      - name: Generate ISO Image for the provision USB Stick
+        run: |
+          genisoimage -output nocloud/${{ github.event.inputs.hostname }}.iso \
+          -volid cidata \
+          -joliet -rock \
+          nocloud/user-data nocloud/meta-data
+
+      - name: Upload ISO Image to GitHub Artifact storage
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.event.inputs.hostname }} ISO Image
+          path: nocloud/${{ github.event.inputs.hostname }}.iso
+          retention-days: 1

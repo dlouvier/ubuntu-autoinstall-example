@@ -1,0 +1,13 @@
+hostname: devapp2
+
+ethernets:
+  interface0:
+    match:
+      macaddress: "08:00:27:76:5C:C6"
+    set-name: interface0
+    addresses:
+      - 10.0.2.15/24
+    gateway4: 10.0.2.2
+    nameservers:
+      addresses:
+        - "10.0.2.2"

@@ -1,0 +1,27 @@
+#cloud-config
+autoinstall:
+  version: 1
+
+  network:
+    version: 2
+    ethernets: {}
+
+  identity:
+    hostname: ""
+    password: "${DEFAULT_USER_PASSWORD}"
+    username: "sysadmin"
+
+  storage:
+    layout:
+      name: lvm
+
+  ssh:
+    install-server: yes
+    allow-pw: no
+    authorized-keys:
+      - "${DEFAULT_USER_SSH_KEY}"
+
+  packages:
+    - curl
+    - python3-minimal
+    - python3-pip

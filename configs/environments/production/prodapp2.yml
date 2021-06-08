@@ -1,0 +1,13 @@
+hostname: prodapp2
+
+ethernets:
+  interface0:
+    match:
+      macaddress: "08:00:27:B1:B5:96"
+    set-name: interface0
+    addresses:
+      - 10.0.30.15/24
+    gateway4: 10.0.30.2
+    nameservers:
+      addresses:
+        - "10.0.30.2"
